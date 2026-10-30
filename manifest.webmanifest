@@ -1,7 +1,7 @@
 {
-  "id": "./",
-  "name": "Osobné projekty",
-  "short_name": "Osobné projekty",
+  "id": "/osobne-projekty-test/",
+  "name": "Osobné projekty TEST",
+  "short_name": "Projekty TEST",
   "description": "Jednoduchý katalóg projektov a úloh.",
   "start_url": "./",
   "scope": "./",

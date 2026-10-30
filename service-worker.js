@@ -1,6 +1,6 @@
 /* Osobné projekty — offline prevádzka; používateľské údaje sú v localStorage, nie v cache. */
 const PREFIX = 'osobne-projekty-firebase-test-pwa-';
-const CACHE = PREFIX + 'v07-test-permission-diagnostic-2';
+const CACHE = PREFIX + 'v07-test-unique-pwa-id-1';
 const FIREBASE_MODULES = [
   'https://www.gstatic.com/firebasejs/13.1.0/firebase-app.js',
   'https://www.gstatic.com/firebasejs/13.1.0/firebase-auth.js',
