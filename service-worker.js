@@ -1,6 +1,6 @@
 /* Osobné projekty — offline prevádzka; používateľské údaje sú v localStorage, nie v cache. */
 const PREFIX = 'osobne-projekty-firebase-test-pwa-';
-const CACHE = PREFIX + 'v07-test-permission-diagnostic';
+const CACHE = PREFIX + 'v07-test-permission-diagnostic-2';
 const FIREBASE_MODULES = [
   'https://www.gstatic.com/firebasejs/13.1.0/firebase-app.js',
   'https://www.gstatic.com/firebasejs/13.1.0/firebase-auth.js',
@@ -49,7 +49,22 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Static PWA files: cached for offline operation.
+  // Critical JavaScript: prefer fresh code online, preserve offline fallback.
+  // This avoids stale code after GitHub Pages deployments.
+  const criticalJs = url.origin === self.location.origin &&
+    (url.pathname.endsWith('/firebase-sync.js') || url.pathname.endsWith('/sync-core.mjs') || url.pathname.endsWith('/cloud-sync.js'));
+  if (criticalJs) {
+    event.respondWith(fetch(request).then(response => {
+      if (response.ok) {
+        const copy = response.clone();
+        event.waitUntil(caches.open(CACHE).then(cache => cache.put(request, copy)));
+      }
+      return response;
+    }).catch(async () => (await caches.match(request)) || Response.error()));
+    return;
+  }
+
+  // Remaining static PWA files: cached for offline operation.
   event.respondWith(
     caches.match(request).then(cached => cached || fetch(request).then(response => {
       if (response.ok) {

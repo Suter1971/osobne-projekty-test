@@ -33,9 +33,9 @@ body.sync-locked main,body.sync-locked #import{pointer-events:none;opacity:.65}
 </script>
 <script>
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('./service-worker.js')
+  window.addEventListener('load', () => navigator.serviceWorker.register('./service-worker.js', {updateViaCache:'none'})
     .catch(error => console.warn('Offline režim sa nepodarilo zapnúť:', error)));
 }
 </script>
-<script type="module" src="./firebase-sync.js?v=0.7-test2"></script>
+<script type="module" src="./firebase-sync.js?v=0.7-test-diagnostika-2"></script>
 </body></html>

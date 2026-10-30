@@ -1,0 +1,6 @@
+Osobné projekty 0.7 TEST – korekcia načítania JavaScriptu
+
+Zachovaná diagnostika notifikácií z predchádzajúcej verzie.
+Oprava: unikátna verzia firebase-sync.js, nová Service Worker cache, načítanie dôležitých JS súborov najprv zo siete s offline zálohou.
+Bez zásahu do Firestore a bez zásahu do ostrej verzie.
+Nahrať obsah ZIP do TEST repo. Nezmazať dáta, neinštalovať ostrú aplikáciu.
