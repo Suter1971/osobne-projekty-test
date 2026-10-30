@@ -1,6 +1,15 @@
-TESTOVACIA ETAPA 1, NIE HOTOVÁ VERZIA 0.7!
-Pripravené: termíny povinné pri novej/úprave úlohy, chronologické radenie nedokončených, dokončené na konci, červené zvýraznenie omeškaných.
-Doterajšie úlohy bez termínu zostanú zachované; pri ich úprave už treba vybrať dátum.
-Zatiaľ NIE JE implementované: push, e-mail, server, finálne aktualizácie PWA.
-Test používa testChanges a samostatnú cache.
-NENASADZOVAŤ DO OSTRÉHO REPOZITÁRA.
+OSOBNÉ PROJEKTY 0.7 – TEST, ETAPA 2
+
+Tento ZIP sa nahráva IBA do repozitára osobne-projekty-test.
+Nahrádza súbory z predchádzajúcej testovacej etapy 1.
+
+Pridané:
+- Zaškrtávacie políčko „Posielať upozornenia na termín“ v editácii úlohy (predvolene vypnuté).
+- V dialógu Firebase prepínač pondelkového e-mailu, uložený iba do users/{uid}/testSettings/notifications.
+- Registrácia a vypnutie FCM zariadenia v users/{uid}/testPushDevices/{deviceId}.
+- Service Worker s podporou background notifikácií.
+- Zachované pôvodné ukladanie a konfliktová synchronizácia.
+
+POZOR: Serverové odosielanie ešte NIE JE zapnuté; žiadne e-maily ani push notifikácie sa zatiaľ neodošlú.
+Staré údaje o úlohách ostávajú zachované.
+Ostrý repozitár inventar-projektov NEMENIŤ.

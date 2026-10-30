@@ -3,7 +3,7 @@
    Store each change as one immutable Firestore document to detect divergent offline edits. */
 import {initializeApp} from 'https://www.gstatic.com/firebasejs/13.1.0/firebase-app.js';
 import {getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged} from 'https://www.gstatic.com/firebasejs/13.1.0/firebase-auth.js';
-import {getFirestore, collection, doc, onSnapshot, setDoc} from 'https://www.gstatic.com/firebasejs/13.1.0/firebase-firestore.js';
+import {getFirestore, collection, doc, onSnapshot, setDoc, getDoc, deleteDoc} from 'https://www.gstatic.com/firebasejs/13.1.0/firebase-firestore.js';
 import {blankData, projectHistory, diffToOps, validOp, same, headsFor} from './sync-core.mjs';
 
 const firebaseConfig = {
@@ -23,6 +23,9 @@ const provider = new GoogleAuthProvider();
 const uuid = () => crypto.randomUUID();
 // Test and production MUST NOT share Firestore collections or local browser data.
 const TEST_MODE = true; // TEST iba: samostatné cloudové aj lokálne úložisko.
+const NOTIF_PREF_COLLECTION = TEST_MODE ? 'testSettings' : 'settings';
+const PUSH_DEVICES_COLLECTION = TEST_MODE ? 'testPushDevices' : 'pushDevices';
+const PUBLIC_VAPID_KEY = 'BKB3wrViDITqOHa8nKWkE2aQFTch3j9IBtDKC85CJOoxmFgA7R2Bfx0kkWdpDhdQn-0-gOn9u0FOS47dG4czino';
 const CHANGES_COLLECTION = TEST_MODE ? 'testChanges' : 'changes';
 const STORAGE_PREFIX = TEST_MODE ? 'inventar-firebase-revisions-test-v1:' : 'inventar-firebase-revisions-v1:';
 const DEVICE_KEY = 'inventar-firebase-device-v1';
@@ -159,12 +162,89 @@ function subscribe(myGeneration,myUid) {
     try {persist();applyRevisions();if(initialized)flush();} catch(e){status('Nepodarilo sa uložiť údaje zo servera. '+e.message,true);}
   },err=>status('Spojenie s databázou nefunguje: '+err.message,true));
 }
+
+// v0.7 – Independent settings, never written to immutable revision history.
+const cloudDialog=$('cloud-dialog');
+const settingsPanel=document.createElement('section');
+settingsPanel.innerHTML=`<hr class="divider"><h3>Upozornenia 0.7 (TEST)</h3>
+  <label style="display:flex;align-items:center;gap:9px"><input type="checkbox" id="weekly-email-enabled" style="width:18px;height:18px"> Pondelkový e-mailový prehľad</label>
+  <p class="cloud-help">Každý pondelok o 09:00. Odosielanie zatiaľ nie je spustené.</p>
+  <button id="register-push-device" type="button">Povoliť upozornenia na tomto telefóne</button>
+  <button id="unregister-push-device" type="button" hidden>Vypnúť upozornenia na tomto telefóne</button>
+  <p id="notifications-status" class="cloud-help" role="status"></p>`;
+cloudDialog.insertBefore(settingsPanel,$('cloud-close').parentElement);
+const notificationsStatus=()=>$('notifications-status');
+function notifyStatus(s){notificationsStatus().textContent=s;}
+let notificationUserVersion=0;
+let storedPushToken=null;
+async function getMessagingSdk(){return import('https://www.gstatic.com/firebasejs/13.1.0/firebase-messaging.js');}
+async function loadNotificationSettings(){
+ const thisVersion=++notificationUserVersion, current=uid;
+ $('weekly-email-enabled').disabled=!current;
+ $('register-push-device').disabled=!current;
+ if(!current){$('weekly-email-enabled').checked=false;notifyStatus('Prihlás sa do účtu.');return;}
+ try{
+  const [prefs, device]=await Promise.all([
+   getDoc(doc(db,'users',current,NOTIF_PREF_COLLECTION,'notifications')),
+   getDoc(doc(db,'users',current,PUSH_DEVICES_COLLECTION,deviceId))]);
+  if(thisVersion!==notificationUserVersion||current!==uid)return;
+  $('weekly-email-enabled').checked=prefs.data()?.weeklyEmailEnabled===true;
+  storedPushToken=device.data()?.token||null;
+  $('unregister-push-device').hidden=!storedPushToken;
+  notifyStatus(storedPushToken?'Zariadenie registrované (TEST). Odosielanie serverom ešte nie je zapnuté.':'Zariadenie zatiaľ nie je registrované.');
+ }catch(e){if(thisVersion===notificationUserVersion)notifyStatus('Načítanie nastavení zlyhalo: '+e.message);}
+}
+$('weekly-email-enabled').addEventListener('change',async e=>{
+ const userId=uid, enabled=e.target.checked; e.target.disabled=true;
+ try{
+  if(!userId)throw Error('Nie si prihlásený.');
+  await setDoc(doc(db,'users',userId,NOTIF_PREF_COLLECTION,'notifications'),{weeklyEmailEnabled:enabled,updatedAt:new Date().toISOString()},{merge:true});
+  if(uid===userId)notifyStatus(enabled?'E-mailový prehľad zapnutý (server zatiaľ neposiela).':'E-mailový prehľad vypnutý.');
+ }catch(err){if(uid===userId){e.target.checked=!enabled;notifyStatus('Nepodarilo sa uložiť: '+err.message);}}
+ finally{e.target.disabled=!uid;}
+});
+$('register-push-device').addEventListener('click',async e=>{
+ const userId=uid;
+ if(!userId){notifyStatus('Prihlás sa do účtu.');return;}
+ if(!('Notification' in window)||!('serviceWorker' in navigator)||!window.isSecureContext){notifyStatus('Tento prehliadač nepodporuje Web Push.');return;}
+ // IMPORTANT: notification permission is requested immediately in a direct user gesture (iOS requirement).
+ const permissionPromise=Notification.requestPermission();
+ e.target.disabled=true;
+ try{
+  const permission=await permissionPromise;
+  if(permission!=='granted')throw Error('Notifikácie neboli povolené.');
+  const sdk=await getMessagingSdk();
+  if(!await sdk.isSupported())throw Error('Firebase Messaging nie je v tomto prehliadači dostupné.');
+  const reg=await navigator.serviceWorker.ready;
+  const token=await sdk.getToken(sdk.getMessaging(app),{vapidKey:PUBLIC_VAPID_KEY,serviceWorkerRegistration:reg});
+  if(!token)throw Error('Telefón nevrátil FCM token.');
+  if(uid!==userId)throw Error('Medzitým bol zmenený účet.');
+  await setDoc(doc(db,'users',userId,PUSH_DEVICES_COLLECTION,deviceId),{token,deviceId,updatedAt:new Date().toISOString(),enabled:true,platform:navigator.userAgent.slice(0,160)});
+  storedPushToken=token;
+  $('unregister-push-device').hidden=false;
+  notifyStatus('Telefón je registrovaný (TEST). Doručovanie spustíme po nasadení servera.');
+ }catch(err){notifyStatus('Registrácia: '+err.message);}
+ finally{e.target.disabled=!uid;}
+});
+$('unregister-push-device').addEventListener('click',async e=>{
+ const userId=uid;e.target.disabled=true;
+ try{
+  if(!userId)throw Error('Nie si prihlásený.');
+  // Delete server-side mapping first. The push subscription is not enough to authorize delivery.
+  await deleteDoc(doc(db,'users',userId,PUSH_DEVICES_COLLECTION,deviceId));
+  if(storedPushToken){try{const sdk=await getMessagingSdk();await sdk.deleteToken(sdk.getMessaging(app));}catch(_){/* cloud record has already been removed */}}
+  storedPushToken=null;$('unregister-push-device').hidden=true;
+  notifyStatus('Upozornenia na tomto telefóne vypnuté.');
+ }catch(err){notifyStatus('Vypnutie sa nepodarilo: '+err.message);}
+ finally{e.target.disabled=false;}
+});
+
 function accountChanged(user) {
   ++generation;
   if(unsub){unsub();unsub=null;}
   uid=null;ops={};pending=new Set();initialized=false;onlineSnapshot=false;
   conflicts=[];lastView=blankData();readyForEdits=false;recoveryBlocked=false;
-  if(!user) {bridge.switchAccount(null);updateUi();return;}
+  if(!user) {bridge.switchAccount(null);updateUi();loadNotificationSettings();return;}
   try {
     restore(user.uid);uid=user.uid;
     // Each user has a completely separate local dataset. Legacy v0.5 key is untouched.
@@ -176,6 +256,7 @@ function accountChanged(user) {
     }
     applyRevisions();
     subscribe(generation,uid);
+    loadNotificationSettings();
     if(initialized)flush();
   } catch(e) {
     uid=null;bridge.switchAccount(null);
