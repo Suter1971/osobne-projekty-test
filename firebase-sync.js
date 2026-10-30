@@ -177,6 +177,9 @@ const notificationsStatus=()=>$('notifications-status');
 function notifyStatus(s){notificationsStatus().textContent=s;}
 let notificationUserVersion=0;
 let storedPushToken=null;
+// The explicit click is the user's opt-in. No automatic browser permission prompt.
+let pushOptInRequested=false;
+let pushRegistrationPromise=null;
 async function getMessagingSdk(){return import('https://www.gstatic.com/firebasejs/13.1.0/firebase-messaging.js');}
 async function loadNotificationSettings(){
  const thisVersion=++notificationUserVersion, current=uid;
@@ -203,17 +206,16 @@ $('weekly-email-enabled').addEventListener('change',async e=>{
  }catch(err){if(uid===userId){e.target.checked=!enabled;notifyStatus('Nepodarilo sa uložiť: '+err.message);}}
  finally{e.target.disabled=!uid;}
 });
-$('register-push-device').addEventListener('click',async e=>{
- const userId=uid;
- if(!userId){notifyStatus('Prihlás sa do účtu.');return;}
- if(!('Notification' in window)||!('serviceWorker' in navigator)||!window.isSecureContext){notifyStatus('Tento prehliadač nepodporuje Web Push.');return;}
- // IMPORTANT: notification permission is requested immediately in a direct user gesture (iOS requirement).
- const permissionBefore=Notification.permission;
- const permissionPromise=Notification.requestPermission();
- e.target.disabled=true;
- try{
-  const permission=await permissionPromise;
-  if(permission!=='granted')throw Error(`Povolenie pred kliknutím: ${permissionBefore}; výsledok: ${permission}; prostredie: ${window.matchMedia('(display-mode: standalone)').matches?'nainštalovaná PWA':'webový prehliadač'}.`);
+
+// Only finish the Firebase registration after the browser has actually granted permission.
+// Sharing the in-flight promise prevents duplicate token writes if a Chrome permission
+// change event and the permission request resolve at nearly the same moment.
+async function finishPushRegistration(userId){
+ if(pushRegistrationPromise)return pushRegistrationPromise;
+ const operation=(async()=>{
+  if(!userId||uid!==userId)throw Error('Používateľský účet sa zmenil.');
+  if(Notification.permission!=='granted')throw Error('Chrome zatiaľ nepovolil oznámenia.');
+  notifyStatus('Povolenie udelené. Registrujem telefón vo Firebase…');
   const sdk=await getMessagingSdk();
   if(!await sdk.isSupported())throw Error('Firebase Messaging nie je v tomto prehliadači dostupné.');
   const reg=await navigator.serviceWorker.ready;
@@ -221,14 +223,70 @@ $('register-push-device').addEventListener('click',async e=>{
   if(!token)throw Error('Telefón nevrátil FCM token.');
   if(uid!==userId)throw Error('Medzitým bol zmenený účet.');
   await setDoc(doc(db,'users',userId,PUSH_DEVICES_COLLECTION,deviceId),{token,deviceId,updatedAt:new Date().toISOString(),enabled:true,platform:navigator.userAgent.slice(0,160)});
+  if(uid!==userId)return;
   storedPushToken=token;
   $('unregister-push-device').hidden=false;
   notifyStatus('Telefón je registrovaný (TEST). Doručovanie spustíme po nasadení servera.');
- }catch(err){notifyStatus('Registrácia: '+err.message);}
+ })();
+ pushRegistrationPromise=operation;
+ try{return await operation;}
+ finally{if(pushRegistrationPromise===operation)pushRegistrationPromise=null;}
+}
+function permissionAdvice(result,before){
+ const now=Notification.permission;
+ if(now==='denied')return 'Chrome blokuje oznámenia pre túto webovú adresu. Kód aplikácie to nemôže obísť. Povolenie treba zmeniť v nastaveniach webu v Chrome.';
+ if(result==='default')return 'Chrome zatiaľ neudelil povolenie (žiadosť mohla vypršať bez odpovede). Ak sa ukáže nenápadná výzva, povoľ ju; aplikácia zmenu zachytí.';
+ return `Chrome požiadavku zamietol (predtým: ${before}; odpoveď: ${result}; aktuálny stav: ${now}). Bez povolenia sa Firebase registrácia nespustí.`;
+}
+$('register-push-device').addEventListener('click',async e=>{
+ const userId=uid;
+ if(!userId){notifyStatus('Prihlás sa do účtu.');return;}
+ if(!('Notification' in window)||!('serviceWorker' in navigator)||!window.isSecureContext){notifyStatus('Tento prehliadač nepodporuje Web Push.');return;}
+ if(window.top!==window.self){notifyStatus('Oznámenia sa nedajú povoliť z vnoreného okna. Otvor aplikáciu priamo v Chrome.');return;}
+ const before=Notification.permission;
+ pushOptInRequested=true;
+ e.target.disabled=true;
+ try{
+  if(before==='denied'){
+   notifyStatus(permissionAdvice('denied',before));
+   return; // Never repeatedly prompt a blocked origin.
+  }
+  if(before==='default'){
+   // Must be invoked synchronously from the real user click for mobile browsers.
+   const permissionPromise=Notification.requestPermission();
+   const result=await permissionPromise;
+   if(result!=='granted' && Notification.permission!=='granted'){
+    notifyStatus(permissionAdvice(result,before));
+    return;
+   }
+  }
+  await finishPushRegistration(userId);
+ }catch(err){if(uid===userId)notifyStatus('Registrácia: '+err.message);}
  finally{e.target.disabled=!uid;}
 });
+
+// Chrome on Android (from version 155) may show a non-blocking permission prompt.
+// Its initial request can end with "default", and permission can be granted later
+// via Chrome's site controls. Listen to that change after explicit opt-in.
+async function watchPushPermission(){
+ if(!('Notification' in window)||!navigator.permissions?.query)return;
+ try{
+  const state=await navigator.permissions.query({name:'notifications'});
+  const changed=()=>{
+   if(!pushOptInRequested||!uid)return;
+   if(state.state==='granted'){
+    const current=uid;
+    finishPushRegistration(current).catch(err=>{if(uid===current)notifyStatus('Registrácia: '+err.message);});
+   }else if(state.state==='denied')notifyStatus(permissionAdvice('denied',Notification.permission));
+  };
+  if(state.addEventListener)state.addEventListener('change',changed);
+  else state.onchange=changed;
+ }catch(_){/* Some browsers do not support querying notification permissions. */}
+}
+watchPushPermission();
 $('unregister-push-device').addEventListener('click',async e=>{
  const userId=uid;e.target.disabled=true;
+ pushOptInRequested=false;
  try{
   if(!userId)throw Error('Nie si prihlásený.');
   // Delete server-side mapping first. The push subscription is not enough to authorize delivery.
@@ -241,6 +299,7 @@ $('unregister-push-device').addEventListener('click',async e=>{
 });
 
 function accountChanged(user) {
+  pushOptInRequested=false;storedPushToken=null;
   ++generation;
   if(unsub){unsub();unsub=null;}
   uid=null;ops={};pending=new Set();initialized=false;onlineSnapshot=false;

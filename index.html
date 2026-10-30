@@ -19,7 +19,7 @@ body.sync-locked main,body.sync-locked #import{pointer-events:none;opacity:.65}
 .task.task-overdue{background:#fff0f0;border-color:#f0bbbb}.task.task-overdue .task-deadline{color:#b91c1c;font-weight:700}.task-push-option{display:flex;align-items:center;gap:9px;margin:16px 0;font-weight:500}.task-push-option input{width:18px;height:18px;flex:none}</style></head><body class="auth-locked">
 <header><div><h1>Osobné projekty</h1><small>Jednoduchý manažment osobných projektov a úloh</small></div><div class="tools"><button id="cloud-toolbar" type="button">Prihlásiť Google</button><button id="export" title="Uložiť záložnú kópiu">Export JSON</button><button id="import">Import JSON</button><input id="import-file" type="file" accept=".json,application/json" hidden></div></header>
 <main><div class="layout"><aside class="panel"><div class="row"><strong>Kategórie</strong><button class="primary" id="add-category">+ Nová</button></div><div id="categories"></div><div class="sidebar-bottom"><hr class="divider"><button id="overdue-button" class="overdue-button" type="button">Po termíne</button></div><div class="hint side-hint">Údaje sa ukladajú lokálne aj cez Firebase. Export JSON si nechaj ako zálohu.</div></aside><section class="panel"><div id="content"></div></section></div></main>
-<footer>Verzia 0.7.2 TEST – nastavenia upozornení • Firebase synchronizácia • JSON zálohu si pravidelne odkladaj</footer>
+<footer>Verzia 0.7.3 TEST – nastavenia upozornení • Firebase synchronizácia • JSON zálohu si pravidelne odkladaj</footer>
 <dialog id="cloud-dialog"><h2>Firebase – synchronizácia</h2>
 <p id="account-label" class="small muted"></p><p id="cloud-status" role="status" aria-live="polite"></p>
 <div class="cloud-actions"><button id="cloud-sync-now" type="button">Skontrolovať synchronizáciu</button><button id="account-signout" type="button">Odhlásiť Google účet</button></div>
@@ -37,5 +37,5 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
     .catch(error => console.warn('Offline režim sa nepodarilo zapnúť:', error)));
 }
 </script>
-<script type="module" src="./firebase-sync.js?v=0.7-test-diagnostika-2"></script>
+<script type="module" src="./firebase-sync.js?v=0.7.3-test-push-24"></script>
 </body></html>

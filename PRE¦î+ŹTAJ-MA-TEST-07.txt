@@ -1,0 +1,15 @@
+OSOBNÉ PROJEKTY 0.7 – TEST, ETAPA 2
+
+Tento ZIP sa nahráva IBA do repozitára osobne-projekty-test.
+Nahrádza súbory z predchádzajúcej testovacej etapy 1.
+
+Pridané:
+- Zaškrtávacie políčko „Posielať upozornenia na termín“ v editácii úlohy (predvolene vypnuté).
+- V dialógu Firebase prepínač pondelkového e-mailu, uložený iba do users/{uid}/testSettings/notifications.
+- Registrácia a vypnutie FCM zariadenia v users/{uid}/testPushDevices/{deviceId}.
+- Service Worker s podporou background notifikácií.
+- Zachované pôvodné ukladanie a konfliktová synchronizácia.
+
+POZOR: Serverové odosielanie ešte NIE JE zapnuté; žiadne e-maily ani push notifikácie sa zatiaľ neodošlú.
+Staré údaje o úlohách ostávajú zachované.
+Ostrý repozitár inventar-projektov NEMENIŤ.
