@@ -1,8 +1,8 @@
-/* Osobné projekty / v0.6 TEST — Firebase authentication and append-only per-account sync.
+/* Osobné projekty / v0.6 — Firebase authentication and append-only per-account sync.
    No Google Drive data are deleted or written. Legacy localStorage key is untouched.
    Store each change as one immutable Firestore document to detect divergent offline edits. */
 import {initializeApp} from 'https://www.gstatic.com/firebasejs/13.1.0/firebase-app.js';
-import {getAuth, GoogleAuthProvider, browserLocalPersistence, setPersistence, signInWithPopup, signOut, onAuthStateChanged} from 'https://www.gstatic.com/firebasejs/13.1.0/firebase-auth.js';
+import {getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged} from 'https://www.gstatic.com/firebasejs/13.1.0/firebase-auth.js';
 import {getFirestore, collection, doc, onSnapshot, setDoc} from 'https://www.gstatic.com/firebasejs/13.1.0/firebase-firestore.js';
 import {blankData, projectHistory, diffToOps, validOp, same, headsFor} from './sync-core.mjs';
 
@@ -21,8 +21,8 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const provider = new GoogleAuthProvider();
 const uuid = () => crypto.randomUUID();
-// Staging and production MUST NOT share Firestore collections or local browser data.
-const TEST_MODE = true; // This package is for testing ONLY; production needs a separately reviewed release.
+// Test and production MUST NOT share Firestore collections or local browser data.
+const TEST_MODE = true; // TEST iba: samostatné cloudové aj lokálne úložisko.
 const CHANGES_COLLECTION = TEST_MODE ? 'testChanges' : 'changes';
 const STORAGE_PREFIX = TEST_MODE ? 'inventar-firebase-revisions-test-v1:' : 'inventar-firebase-revisions-v1:';
 const DEVICE_KEY = 'inventar-firebase-device-v1';
@@ -59,6 +59,7 @@ function lockUi(locked) {
   document.body.classList.toggle('sync-locked',Boolean(uid&&locked));
   const label=TEST_MODE?'Firebase TEST':'Firebase';
   $('cloud-toolbar').textContent=!uid?'Prihlásiť Google':conflicts.length?label+' ⚠':pending.size?label+' ↻':label+' ✓';
+  $('cloud-toolbar').classList.toggle('firebase-toolbar-conflict', Boolean(uid&&conflicts.length));
   $('account-signout').hidden=!uid;
   $('account-label').textContent=auth.currentUser?.email||'';
   $('auth-gate').hidden=Boolean(uid);
@@ -184,7 +185,8 @@ function accountChanged(user) {
 }
 async function login() {
   try {$('auth-login').disabled=true;
-    await setPersistence(auth,browserLocalPersistence);
+    // Open the OAuth popup directly in the user click gesture (required by iOS Safari).
+    // Browser Firebase Auth defaults to persistent local sessions; do not await setPersistence here.
     await signInWithPopup(auth,provider);
   } catch(e) {alert('Google prihlásenie nebolo dokončené: '+e.message);}
   finally {$('auth-login').disabled=false;}

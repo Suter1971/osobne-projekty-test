@@ -1,0 +1,6 @@
+TESTOVACIA ETAPA 1, NIE HOTOVÁ VERZIA 0.7!
+Pripravené: termíny povinné pri novej/úprave úlohy, chronologické radenie nedokončených, dokončené na konci, červené zvýraznenie omeškaných.
+Doterajšie úlohy bez termínu zostanú zachované; pri ich úprave už treba vybrať dátum.
+Zatiaľ NIE JE implementované: push, e-mail, server, finálne aktualizácie PWA.
+Test používa testChanges a samostatnú cache.
+NENASADZOVAŤ DO OSTRÉHO REPOZITÁRA.

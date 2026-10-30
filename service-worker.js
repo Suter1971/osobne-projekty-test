@@ -1,6 +1,6 @@
-/* Inventár projektov — offline prevádzka; používateľské údaje sú v localStorage, nie v cache. */
+/* Osobné projekty — offline prevádzka; používateľské údaje sú v localStorage, nie v cache. */
 const PREFIX = 'osobne-projekty-firebase-test-pwa-';
-const CACHE = PREFIX + 'v06-test';
+const CACHE = PREFIX + 'v07-test-task-stage1';
 const FIREBASE_MODULES = [
   'https://www.gstatic.com/firebasejs/13.1.0/firebase-app.js',
   'https://www.gstatic.com/firebasejs/13.1.0/firebase-auth.js',
