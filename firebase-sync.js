@@ -208,11 +208,12 @@ $('register-push-device').addEventListener('click',async e=>{
  if(!userId){notifyStatus('Prihlás sa do účtu.');return;}
  if(!('Notification' in window)||!('serviceWorker' in navigator)||!window.isSecureContext){notifyStatus('Tento prehliadač nepodporuje Web Push.');return;}
  // IMPORTANT: notification permission is requested immediately in a direct user gesture (iOS requirement).
+ const permissionBefore=Notification.permission;
  const permissionPromise=Notification.requestPermission();
  e.target.disabled=true;
  try{
   const permission=await permissionPromise;
-  if(permission!=='granted')throw Error('Notifikácie neboli povolené.');
+  if(permission!=='granted')throw Error(`Povolenie pred kliknutím: ${permissionBefore}; výsledok: ${permission}; prostredie: ${window.matchMedia('(display-mode: standalone)').matches?'nainštalovaná PWA':'webový prehliadač'}.`);
   const sdk=await getMessagingSdk();
   if(!await sdk.isSupported())throw Error('Firebase Messaging nie je v tomto prehliadači dostupné.');
   const reg=await navigator.serviceWorker.ready;
