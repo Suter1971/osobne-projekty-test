@@ -166,15 +166,25 @@ function subscribe(myGeneration,myUid) {
 // v0.7 – Independent settings, never written to immutable revision history.
 const cloudDialog=$('cloud-dialog');
 const settingsPanel=document.createElement('section');
-settingsPanel.innerHTML=`<hr class="divider"><h3>Upozornenia 0.7 (TEST)</h3>
-  <label style="display:flex;align-items:center;gap:9px"><input type="checkbox" id="weekly-email-enabled" style="width:18px;height:18px"> Pondelkový e-mailový prehľad</label>
-  <p class="cloud-help">Každý pondelok o 09:00. Odosielanie zatiaľ nie je spustené.</p>
+settingsPanel.innerHTML=`<hr class="divider"><h3>Upozornenia (0.8 TEST)</h3>
+  <button id="email-settings-button" type="button">Nastavenie e-mailových prehľadov</button>
+  <p class="cloud-help">Push upozornenia na tomto zariadení:</p>
   <button id="register-push-device" type="button">Povoliť upozornenia na tomto telefóne</button>
   <button id="unregister-push-device" type="button" hidden>Vypnúť upozornenia na tomto telefóne</button>
   <p id="notifications-status" class="cloud-help" role="status"></p>`;
 cloudDialog.insertBefore(settingsPanel,$('cloud-close').parentElement);
+const emailDialog=document.createElement('dialog');
+emailDialog.id='email-notifications-dialog';
+emailDialog.innerHTML=`<h2>Pondelkový e-mailový prehľad</h2>
+ <label style="display:flex;align-items:center;gap:9px"><input type="checkbox" id="weekly-email-enabled" style="width:18px;height:18px"> Zapnúť pondelkový e-mailový prehľad</label>
+ <p class="cloud-help">Každý pondelok o 09:00. Nedokončené úlohy v tomto týždni a počet úloh na nasledujúci týždeň.</p>
+ <p id="email-notifications-status" class="cloud-help" role="status"></p>
+ <div class="modal-actions"><button id="email-settings-close" type="button">Zavrieť</button></div>`;
+document.body.append(emailDialog);
+$('email-settings-button').addEventListener('click',()=>emailDialog.showModal());
+$('email-settings-close').addEventListener('click',()=>emailDialog.close());
 const notificationsStatus=()=>$('notifications-status');
-function notifyStatus(s){notificationsStatus().textContent=s;}
+function notifyStatus(s){notificationsStatus().textContent=s;$('email-notifications-status').textContent=s;}
 let notificationUserVersion=0;
 let storedPushToken=null;
 // The explicit click is the user's opt-in. No automatic browser permission prompt.
@@ -194,7 +204,7 @@ async function loadNotificationSettings(){
   $('weekly-email-enabled').checked=prefs.data()?.weeklyEmailEnabled===true;
   storedPushToken=device.data()?.token||null;
   $('unregister-push-device').hidden=!storedPushToken;
-  notifyStatus(storedPushToken?'Zariadenie registrované (TEST). Odosielanie serverom ešte nie je zapnuté.':'Zariadenie zatiaľ nie je registrované.');
+  notifyStatus(storedPushToken?'Zariadenie registrované (TEST). Doručenie závisí od nasadenia servera.':'Zariadenie zatiaľ nie je registrované.');
  }catch(e){if(thisVersion===notificationUserVersion)notifyStatus('Načítanie nastavení zlyhalo: '+e.message);}
 }
 $('weekly-email-enabled').addEventListener('change',async e=>{
@@ -202,7 +212,7 @@ $('weekly-email-enabled').addEventListener('change',async e=>{
  try{
   if(!userId)throw Error('Nie si prihlásený.');
   await setDoc(doc(db,'users',userId,NOTIF_PREF_COLLECTION,'notifications'),{weeklyEmailEnabled:enabled,updatedAt:new Date().toISOString()},{merge:true});
-  if(uid===userId)notifyStatus(enabled?'E-mailový prehľad zapnutý (server zatiaľ neposiela).':'E-mailový prehľad vypnutý.');
+  if(uid===userId)notifyStatus(enabled?'E-mailový prehľad zapnutý (TEST).':'E-mailový prehľad vypnutý.');
  }catch(err){if(uid===userId){e.target.checked=!enabled;notifyStatus('Nepodarilo sa uložiť: '+err.message);}}
  finally{e.target.disabled=!uid;}
 });
@@ -226,7 +236,7 @@ async function finishPushRegistration(userId){
   if(uid!==userId)return;
   storedPushToken=token;
   $('unregister-push-device').hidden=false;
-  notifyStatus('Telefón je registrovaný (TEST). Doručovanie spustíme po nasadení servera.');
+  notifyStatus('Telefón je registrovaný (TEST). Doručenie závisí od nasadenia servera.');
  })();
  pushRegistrationPromise=operation;
  try{return await operation;}
