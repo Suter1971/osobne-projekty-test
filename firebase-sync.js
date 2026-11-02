@@ -167,7 +167,6 @@ function subscribe(myGeneration,myUid) {
 const cloudDialog=$('cloud-dialog');
 const settingsPanel=document.createElement('section');
 settingsPanel.innerHTML=`<hr class="divider"><h3>Upozornenia (0.8 TEST)</h3>
-  <button id="email-settings-button" type="button">Nastavenie e-mailových prehľadov</button>
   <p class="cloud-help">Push upozornenia na tomto zariadení:</p>
   <button id="register-push-device" type="button">Povoliť upozornenia na tomto telefóne</button>
   <button id="unregister-push-device" type="button" hidden>Vypnúť upozornenia na tomto telefóne</button>
